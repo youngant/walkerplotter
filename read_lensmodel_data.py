@@ -4,7 +4,7 @@ import corner
 import pandas as pd
 import glob
 import os
-from chainplotter import *
+from walkerplotter import *
 
 def read_tmpfile_data(filename, parmnames):
 	'''
@@ -61,6 +61,53 @@ def read_files(parmlist, directory = './', basename='best'):
 					   r'$\theta_e$', r'$\gamma$', r'$\theta_{\gamma}$', r'$s$',
 					   r'$e_x$', r'$e_y$', r'$\gamma_x$', r'$\gamma_y$', 
 					   r'$\alpha$', r'$\chi^2$']
+
+	# Make sure that chisq is in the list
+	if 'chisq' not in parmlist:
+		parmlist.append('chisq')
+
+	parms_idx = []
+	for parm in parmlist:
+		parms_idx.append(col_names.index(parm))
+
+	# Pick out the data to include names for.
+	col_names_included = []
+	col_names_latex_included = []
+	for idx in parms_idx:
+		col_names_included.append(col_names[idx])
+		col_names_latex_included.append(col_names_latex[idx])
+
+	# Read in the data and make a list of it.
+	walkers = []
+	for filename in files:
+		walkers.append(read_tmpfile_data(filename, col_names_included))
+
+	walk = WalkerPlotter(walkers, col_names_included,
+						 parm_labels_latex = col_names_latex_included)
+
+	return walk
+
+
+def read_multiple_mcmc_folders(parmlist, directory = './', basename='mcmc'):
+	'''
+	Reads in the data from multiple MCMC runs in separate folders.
+
+	This needs to be done because lensmodel does not properly take advantage of
+	multi-thread CPUs.
+
+	The contents of the directory folder need to only be identical folders each
+	containing an MCMC run. The only difference between folders should be the
+	random seed and the output files.
+	'''
+
+	# Get a folder list (This will be unsorted, but that should be fine.)
+	files = glob.glob(directory + '{0}-*/{0}-*-*.tmp'.format(basename))
+
+	col_names 		= ['b', 'RA', 'DEC', 'e', 'theta_e', 'gamma', 'theta_gamma',
+					   's', 'e_x', 'e_y', 'gamma_x', 'gamma_y', 'chisq']
+	col_names_latex = [r'$b$', r'RA', r'DEC', r'$e$', r'$\theta_e$', \
+					   r'$\gamma$', r'$\theta_{\gamma}$', r'$s$', r'$e_x$',
+					   r'$e_y$', r'$\gamma_x$', r'$\gamma_y$', r'$\chi^2$']
 
 	# Make sure that chisq is in the list
 	if 'chisq' not in parmlist:
