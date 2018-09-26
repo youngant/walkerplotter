@@ -97,7 +97,7 @@ def read_multiple_mcmc_folders(parmlist, directory = './', basename='mcmc'):
 
 	The contents of the directory folder need to only be identical folders each
 	containing an MCMC run. The only difference between folders should be the
-	random seed and the output files.
+	random seed and the output files. The output files can vary in length.
 	'''
 
 	# Get a folder list (This will be unsorted, but that should be fine.)
@@ -130,6 +130,68 @@ def read_multiple_mcmc_folders(parmlist, directory = './', basename='mcmc'):
 		walkers.append(read_tmpfile_data(filename, col_names_included))
 
 	walk = WalkerPlotter(walkers, col_names_included,
+						 parm_labels_latex = col_names_latex_included)
+
+	return walk
+
+
+def read_emcee_output(parmlist, mainfile, burnfile=None):
+	'''
+	Reads in the output data from an emcee MCMC run and returns a WalkerPlotter 
+	object containing the data.
+
+	If the filename for burnfile is provided, the returned object will contain 
+	ALL of the data for the chains, including the burn-in steps.
+	'''
+
+	# Read in the data
+	data = np.loadtxt(mainfile)
+
+	# Figure out the number of walkers
+	N = int(data[:,1].max()) + 1
+
+	# Trim the step and walker indices
+	data = data[:,2:]
+
+	# Add the burnfile to the beginning of the data if desired
+	if burnfile is not None:
+		burndata = np.loadtxt(burnfile)[:,2:]
+		data = np.append(burndata, data, axis=0)
+
+	# Move the chi^2 data to the end of the array
+	data = np.append(data[:,1:], data[:,0,None], axis=1)
+
+
+	col_names 		= ['b', 'RA', 'DEC', 'e', 'theta_e', 'gamma', 'theta_gamma',
+					   's', 'e_x', 'e_y', 'gamma_x', 'gamma_y', 'chisq']
+	col_names_latex = [r'$b$', r'RA', r'DEC', r'$e$', r'$\theta_e$', \
+					   r'$\gamma$', r'$\theta_{\gamma}$', r'$s$', r'$e_x$',
+					   r'$e_y$', r'$\gamma_x$', r'$\gamma_y$', r'$\chi^2$']
+
+	# Make sure that chisq is in the list
+	if 'chisq' not in parmlist:
+		parmlist.append('chisq')
+
+	parms_idx = []
+	for parm in parmlist:
+		parms_idx.append(col_names.index(parm))
+
+	# Pick out the data to include names for.
+	col_names_included = []
+	col_names_latex_included = []
+	for idx in parms_idx:
+		col_names_included.append(col_names[idx])
+		col_names_latex_included.append(col_names_latex[idx])
+
+
+	# Make a list of DataFrames for each walker
+	datalist = []
+	for i in range(0,N):
+		datalist.append(pd.DataFrame(data=data[i::N], 
+									 columns=col_names_included))
+
+
+	walk = WalkerPlotter(datalist, col_names_included,
 						 parm_labels_latex = col_names_latex_included)
 
 	return walk
